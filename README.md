@@ -1,6 +1,6 @@
 # docling_rs
 
-An unofficial, typed, async-first Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve) — the document conversion API powered by IBM's Docling.
+Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve) that makes document conversion simple, reliable, and production-ready in Rust.
 
 Convert PDFs, DOCX, PPTX, images, and more into Markdown, JSON, HTML, or plain text from Rust.
 
@@ -24,7 +24,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-docling_rs = { path = "." }
+docling_rs = "0.1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
