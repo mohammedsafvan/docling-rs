@@ -1,5 +1,4 @@
-// Crate renamed from docling_rs to docling-rs
-//! # docling-rs
+//! # docling_rs
 //!
 //! "Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve) that makes document conversion simple, reliable, and production-ready in Rust"
 //!
