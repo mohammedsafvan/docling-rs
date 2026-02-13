@@ -1,6 +1,7 @@
-//! # docling_rs
+// Crate renamed from docling_rs to docling-rs
+//! # docling-rs
 //!
-//! An unofficial, typed, async-first Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve).
+//! "Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve) that makes document conversion simple, reliable, and production-ready in Rust"
 //!
 //! ## Modules
 //!
