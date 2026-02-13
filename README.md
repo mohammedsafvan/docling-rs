@@ -1,4 +1,4 @@
-# docling_rs
+# docling-rs
 
 Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve) that makes document conversion simple, reliable, and production-ready in Rust.
 
@@ -24,7 +24,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-docling_rs = "0.1"
+docling-rs = "0.1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

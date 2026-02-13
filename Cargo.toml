@@ -1,12 +1,12 @@
 [package]
-name = "docling_rs"
+name = "docling-rs"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "An unofficial, typed, async-first Rust SDK for Docling Serve"
+description = "Rust SDK for Docling Serve that makes document conversion simple, reliable, and production-ready in Rust"
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/mohammedsafvan/docling_rs"
+repository = "https://github.com/mohammedsafvan/docling-rs"
 keywords = ["docling", "document-conversion", "pdf", "ocr", "sdk"]
 categories = ["api-bindings", "web-programming::http-client"]
 
