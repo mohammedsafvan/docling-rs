@@ -152,6 +152,13 @@ pub enum ConversionStatus {
     Skipped,
 }
 
+impl std::fmt::Display for ConversionStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = serde_json::to_value(self).unwrap();
+        write!(f, "{}", s.as_str().unwrap())
+    }
+}
+
 /// Docling component types (for error reporting).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

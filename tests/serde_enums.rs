@@ -251,4 +251,11 @@ fn display_impls_match_serde() {
         format!("{}", VlmModelType::DeepsekocrOllama),
         "deepseekocr_ollama"
     );
+
+    // ConversionStatus
+    assert_eq!(format!("{}", ConversionStatus::Success), "success");
+    assert_eq!(
+        format!("{}", ConversionStatus::PartialSuccess),
+        "partial_success"
+    );
 }

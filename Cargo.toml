@@ -1,14 +1,19 @@
 [package]
 name = "docling_rs"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.85"
 description = "Rust SDK for Docling Serve that makes document conversion simple, reliable, and production-ready in Rust"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/mohammedsafvan/docling-rs"
+documentation = "https://docs.rs/docling_rs"
 keywords = ["docling", "document-conversion", "pdf", "ocr", "sdk"]
 categories = ["api-bindings", "web-programming::http-client"]
+
+[features]
+default = ["blocking"]
+blocking = []
 
 [dependencies]
 reqwest = { version = "0.13.2", features = ["json", "multipart"] }
@@ -16,6 +21,10 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "fs"] }
+
+[[example]]
+name = "convert_url_blocking"
+required-features = ["blocking"]
 
 [dev-dependencies]
 mockito = "1.7"

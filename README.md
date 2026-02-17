@@ -1,26 +1,70 @@
 # docling_rs
 
-Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve) that makes document conversion simple, reliable, and production-ready in Rust.
+Rust SDK for [Docling Serve](https://github.com/docling-project/docling-serve). Convert PDFs, DOCX, PPTX, images, and more into Markdown, JSON, HTML, or plain text.
 
-Convert PDFs, DOCX, PPTX, images, and more into Markdown, JSON, HTML, or plain text from Rust.
+[![docs.rs](https://img.shields.io/badge/docs.rs-docling__rs-blue)](https://docs.rs/docling_rs)
 
 ## Features
 
-- **Synchronous & async conversion** — block until done, or submit and poll
-- **Local file upload** — convert files from disk via multipart upload
-- **Fully typed** — all enums, options, and responses match the OpenAPI 3.1 spec (v1.12.0)
-- **Optional API key auth** — `Authorization: Bearer <key>` on all secured endpoints
-- **Structured errors** — distinct variants for network, API, deserialization, file I/O, task failure, and timeout
+- **Async-first HTTP client** — Built on `reqwest` with full async/await support
+- **Synchronous API** — Blocking wrapper available via feature flag for simple scripts
+- **URL & file conversion** — Convert from HTTP URLs or upload local files via multipart
+- **Sync & async job handling** — Block until done, or submit and poll for large documents
+- **Fully typed** — All enums and models matching OpenAPI 3.1 spec (v1.12.0)
+- **API key authentication** — Bearer token support for secured endpoints
+- **Structured errors** — Typed errors for network, API, JSON, I/O, task failures, timeouts
 - **Zero unsafe code**
-
-## Requirements
-
-- Rust 2024 edition (1.85+)
-- A running [Docling Serve](https://github.com/docling-project/docling-serve) instance
 
 ## Installation
 
-Add to your `Cargo.toml`:
+```toml
+[dependencies]
+docling_rs = "0.1"
+```
+
+All dependencies (including `tokio` for the internal runtime) are included automatically.
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `blocking` | ✅ | Enables synchronous API in `docling_rs::blocking`. |
+
+### Using without blocking API
+
+For smaller binary size when you only need async:
+
+```toml
+[dependencies]
+docling_rs = { version = "0.1", default-features = false }
+```
+
+## Quick Start
+
+### Blocking API (Simplest)
+
+No async boilerplate needed. Works in any Rust program:
+
+```rust
+use docling_rs::blocking::DoclingClient;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = DoclingClient::new("http://127.0.0.1:5001");
+    
+    // Convert a URL
+    let result = client
+        .convert_source("https://arxiv.org/pdf/2206.01062", None)?;
+    
+    if let Some(md) = &result.document.md_content {
+        println!("{}", md);
+    }
+    Ok(())
+}
+```
+
+### Async API
+
+For integration with async Rust code. Requires `tokio` for the async runtime:
 
 ```toml
 [dependencies]
@@ -28,37 +72,18 @@ docling_rs = "0.1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-## Quick Start
-
-### Health check
-
 ```rust
 use docling_rs::DoclingClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = DoclingClient::new("http://127.0.0.1:5001");
-
-    let health = client.health().await?;
-    println!("Status: {}", health.status); // "ok"
-    Ok(())
-}
-```
-
-### Convert a URL to Markdown (synchronous)
-
-```rust
-use docling_rs::DoclingClient;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
-
+    
+    // Convert a URL
     let result = client
         .convert_source("https://arxiv.org/pdf/2206.01062", None)
         .await?;
-
-    println!("Status: {:?}", result.status);
+    
     if let Some(md) = &result.document.md_content {
         println!("{}", md);
     }
@@ -66,257 +91,102 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Convert with options
-
-```rust
-use docling_rs::{DoclingClient, ConvertDocumentsRequestOptions, OutputFormat};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
-
-    let opts = ConvertDocumentsRequestOptions {
-        to_formats: Some(vec![OutputFormat::Md, OutputFormat::Text]),
-        do_ocr: Some(true),
-        ..Default::default()
-    };
-
-    let result = client
-        .convert_source("https://arxiv.org/pdf/2206.01062", Some(opts))
-        .await?;
-
-    if let Some(text) = &result.document.text_content {
-        println!("{}", text);
-    }
-    Ok(())
-}
-```
-
-### Async conversion with polling
-
-For large documents, use async conversion to avoid HTTP timeouts:
-
-```rust
-use std::time::Duration;
-use docling_rs::DoclingClient;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
-
-    // Submit, poll, and return result — all in one call
-    let result = client
-        .wait_for_conversion(
-            "https://arxiv.org/pdf/2206.01062",
-            None,                        // default options
-            Duration::from_secs(300),    // 5 min timeout
-            Some(5.0),                   // 5s server-side long-poll
-        )
-        .await?;
-
-    println!("Status: {:?}", result.status);
-    println!("Time: {:.1}s", result.processing_time);
-    Ok(())
-}
-```
-
-### Manual async flow (fine-grained control)
-
-```rust
-use docling_rs::DoclingClient;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
-
-    // 1. Submit
-    let task = client
-        .convert_source_async("https://arxiv.org/pdf/2206.01062", None)
-        .await?;
-    println!("Task ID: {}", task.task_id);
-
-    // 2. Poll (with 10s long-poll)
-    loop {
-        let status = client.poll_task_status(&task.task_id, Some(10.0)).await?;
-        println!("Status: {}", status.task_status);
-
-        if status.task_status == "SUCCESS" {
-            break;
-        }
-        if status.task_status == "FAILURE" {
-            eprintln!("Task failed!");
-            return Ok(());
-        }
-    }
-
-    // 3. Fetch result
-    let result = client.get_task_result(&task.task_id).await?;
-    if let Some(md) = &result.document.md_content {
-        println!("{}", md);
-    }
-    Ok(())
-}
-```
-
-### Convert a local file
-
-```rust
-use docling_rs::DoclingClient;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
-
-    let result = client
-        .convert_file(&["./document.pdf"], None, None)
-        .await?;
-
-    if let Some(md) = &result.document.md_content {
-        println!("{}", md);
-    }
-    Ok(())
-}
-```
-
-### Async file conversion with polling
-
-```rust
-use std::time::Duration;
-use docling_rs::DoclingClient;
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
-
-    let result = client
-        .wait_for_file_conversion(
-            &["./document.pdf"],
-            None,                        // default options
-            None,                        // default target (in-body)
-            Duration::from_secs(300),    // 5 min timeout
-            Some(5.0),                   // 5s server-side long-poll
-        )
-        .await?;
-
-    println!("Status: {:?}", result.status);
-    Ok(())
-}
-```
-
-### With API key authentication
-
-```rust
-use docling_rs::DoclingClient;
-
-let client = DoclingClient::with_api_key(
-    "https://docling.example.com",
-    "your-api-key-here",
-);
-```
-
-## API Reference
-
-### `DoclingClient`
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `health()` | `GET /health` | Health check |
-| `version()` | `GET /version` | Server version info |
-| `convert_source(url, options)` | `POST /v1/convert/source` | Synchronous URL conversion |
-| `convert(request)` | `POST /v1/convert/source` | Full request control |
-| `convert_source_async(url, options)` | `POST /v1/convert/source/async` | Submit async URL task |
-| `convert_async(request)` | `POST /v1/convert/source/async` | Submit async (full request) |
-| `convert_file(paths, options, target)` | `POST /v1/convert/file` | Synchronous file upload |
-| `convert_file_async(paths, options, target)` | `POST /v1/convert/file/async` | Submit async file task |
-| `poll_task_status(task_id, wait)` | `GET /v1/status/poll/{id}` | Poll task status |
-| `get_task_result(task_id)` | `GET /v1/result/{id}` | Fetch completed result |
-| `wait_for_conversion(url, opts, timeout, poll)` | (composite) | Submit URL + poll + fetch |
-| `wait_for_file_conversion(paths, opts, tgt, timeout, poll)` | (composite) | Submit file + poll + fetch |
-
-### Key Types
-
-**Enums:**
-`InputFormat`, `OutputFormat`, `ImageRefMode`, `TableFormerMode`, `PdfBackend`, `ProcessingPipeline`, `OcrEngine`, `ConversionStatus`, `VlmModelType`
-
-**Request:**
-`Source` (Http, File), `Target` (InBody, Zip), `ConvertDocumentsRequestOptions`, `ConvertDocumentsRequest`
-
-**Response:**
-`ConvertDocumentResponse`, `ExportDocumentResponse`, `TaskStatusResponse`, `HealthCheckResponse`
-
-**Errors:**
-`DoclingError` — `Http`, `Api`, `Json`, `Io`, `TaskFailed`, `Timeout`
-
-### Conversion Options
-
-All fields in `ConvertDocumentsRequestOptions` are optional. The server applies defaults for anything omitted. Key options:
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `to_formats` | `Vec<OutputFormat>` | `["md"]` | Output format(s) |
-| `do_ocr` | `bool` | `true` | Enable OCR |
-| `ocr_engine` | `OcrEngine` | `easyocr` | OCR engine |
-| `table_mode` | `TableFormerMode` | `accurate` | Table extraction mode |
-| `pdf_backend` | `PdfBackend` | `dlparse_v4` | PDF parser backend |
-| `pipeline` | `ProcessingPipeline` | `standard` | Processing pipeline |
-| `page_range` | `(i64, i64)` | `(1, MAX)` | Page range to convert |
-| `image_export_mode` | `ImageRefMode` | `embedded` | How to handle images |
-
-See `ConvertDocumentsRequestOptions` for the full list (25+ fields).
-
-## Running Examples
-
-Start Docling Serve:
+## Examples
 
 ```bash
+# Run Docling Serve
 docling-serve run --port 5001
-```
 
-Run examples:
-
-```bash
+# Run examples
 cargo run --example health
 cargo run --example convert_url
 cargo run --example convert_url_async
 cargo run --example convert_file
 cargo run --example convert_file_async
+cargo run --example convert_url_blocking  # No tokio needed
+```
+
+## API Overview
+
+### Blocking API
+
+```rust
+use docling_rs::blocking::DoclingClient;
+
+let client = DoclingClient::new("http://127.0.0.1:5001");
+
+// Health & version
+client.health()?;
+client.version()?;
+
+// Basic conversion (options is owned: Option<ConvertDocumentsRequestOptions>)
+let result = client.convert_source(url, options)?;
+
+// File upload (options is borrowed: Option<&ConvertDocumentsRequestOptions>)
+let result = client.convert_file(paths, options.as_ref(), target)?;
+
+// Async with polling (blocking wrapper)
+let task = client.convert_source_async(url, options)?;
+let status = client.poll_task_status(&task.task_id, None)?;
+let result = client.get_task_result(&task.task_id)?;
+
+// Convenience methods
+let result = client.wait_for_conversion(url, options, timeout, poll_interval)?;
+let result = client.wait_for_file_conversion(paths, options.as_ref(), target, timeout, poll_interval)?;
+```
+
+### Async API
+
+```rust
+use docling_rs::DoclingClient;
+
+let client = DoclingClient::new("http://127.0.0.1:5001");
+
+// Health & version
+client.health().await?;
+client.version().await?;
+
+// Basic conversion (options is owned: Option<ConvertDocumentsRequestOptions>)
+let result = client.convert_source(url, options).await?;
+
+// File upload (options is borrowed: Option<&ConvertDocumentsRequestOptions>)
+let result = client.convert_file(paths, options.as_ref(), target).await?;
+
+// Async with polling
+let task = client.convert_source_async(url, options).await?;
+let status = client.poll_task_status(&task.task_id, None).await?;
+let result = client.get_task_result(&task.task_id).await?;
+
+// Convenience methods
+let result = client.wait_for_conversion(url, options, timeout, poll_interval).await?;
+let result = client.wait_for_file_conversion(paths, options.as_ref(), target, timeout, poll_interval).await?;
 ```
 
 ## Error Handling
 
+Both APIs return the same `DoclingError` variants:
+
 ```rust
-use docling_rs::{DoclingClient, DoclingError};
+use docling_rs::blocking::DoclingClient;
+use docling_rs::DoclingError;
 
-async fn example() {
-    let client = DoclingClient::new("http://127.0.0.1:5001");
+let client = DoclingClient::new("http://127.0.0.1:5001");
 
-    match client.convert_source("https://example.com/doc.pdf", None).await {
-        Ok(result) => println!("Success: {:?}", result.status),
-        Err(DoclingError::Http(e)) => eprintln!("Network error: {}", e),
-        Err(DoclingError::Api { status_code, body }) => {
-            eprintln!("API error {}: {}", status_code, body);
-        }
-        Err(DoclingError::Json(e)) => eprintln!("Parse error: {}", e),
-        Err(DoclingError::Io(e)) => eprintln!("File I/O error: {}", e),
-        Err(DoclingError::TaskFailed { task_id, status }) => {
-            eprintln!("Task {} failed: {}", task_id, status);
-        }
-        Err(DoclingError::Timeout { task_id, elapsed_secs }) => {
-            eprintln!("Task {} timed out after {:.0}s", task_id, elapsed_secs);
-        }
+match client.convert_source("https://example.com/doc.pdf", None) {
+    Ok(result) => println!("Success: {}", result.status),
+    Err(DoclingError::Http(e)) => eprintln!("Network error: {}", e),
+    Err(DoclingError::Api { status_code, body }) => {
+        eprintln!("API error {}: {}", status_code, body);
     }
+    Err(DoclingError::TaskFailed { task_id, status }) => {
+        eprintln!("Task {} failed: {}", task_id, status);
+    }
+    Err(DoclingError::Timeout { task_id, elapsed_secs }) => {
+        eprintln!("Task {} timed out after {:.0}s", task_id, elapsed_secs);
+    }
+    _ => eprintln!("Other error"),
 }
 ```
-
-## Testing
-
-Run the full test suite (no running Docling Serve instance required):
-
-```bash
-cargo test
-```
-
-The suite includes 79 tests across serialization round-trips, mock HTTP client behavior, auth header handling, file uploads, error mapping, and more.
 
 ## License
 
